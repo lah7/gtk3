@@ -154,9 +154,9 @@ gsk_ngl_renderer_unrealize (GskRenderer *renderer)
 
   gsk_ngl_renderer_free_backbuffer (self);
 
-  gdk_gl_context_clear_current ();
-
   GSK_RENDERER_CLASS (gsk_ngl_renderer_parent_class)->unrealize (renderer);
+
+  gdk_gl_context_clear_current ();
 }
 
 static void
