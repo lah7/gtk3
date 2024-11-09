@@ -151,10 +151,82 @@ gtk_application_impl_quartz_show_all (GSimpleAction *action,
   [NSApp unhideAllApplications:NSApp];
 }
 
-static GActionEntry gtk_application_impl_quartz_actions[] = {
+static GActionEntry gtk_application_impl_quartz_internal_actions[] = {
   { "hide",             gtk_application_impl_quartz_hide        },
   { "hide-others",      gtk_application_impl_quartz_hide_others },
   { "show-all",         gtk_application_impl_quartz_show_all    }
+};
+
+static void
+gtk_application_impl_quartz_undo (GSimpleAction *action,
+                                  GVariant      *parameter,
+                                  gpointer       user_data)
+{
+  [NSApp sendAction:@selector(undo:) to:nil from:NSApp];
+}
+
+static void
+gtk_application_impl_quartz_redo (GSimpleAction *action,
+                                  GVariant      *parameter,
+                                  gpointer       user_data)
+{
+  [NSApp sendAction:@selector(redo:) to:nil from:NSApp];
+}
+
+static GActionEntry gtk_application_impl_quartz_text_actions[] = {
+  { "undo", gtk_application_impl_quartz_undo },
+  { "redo", gtk_application_impl_quartz_redo }
+};
+
+static void
+gtk_application_impl_quartz_cut (GSimpleAction *action,
+                                 GVariant      *parameter,
+                                 gpointer       user_data)
+{
+  [NSApp sendAction:@selector(cut:) to:nil from:NSApp];
+}
+
+static void
+gtk_application_impl_quartz_copy (GSimpleAction *action,
+                                  GVariant      *parameter,
+                                  gpointer       user_data)
+{
+  [NSApp sendAction:@selector(copy:) to:nil from:NSApp];
+}
+
+static void
+gtk_application_impl_quartz_paste (GSimpleAction *action,
+                                   GVariant      *parameter,
+                                   gpointer       user_data)
+{
+  [NSApp sendAction:@selector(paste:) to:nil from:NSApp];
+}
+
+static GActionEntry gtk_application_impl_quartz_clipboard_actions[] = {
+  { "cut",   gtk_application_impl_quartz_cut   },
+  { "copy",  gtk_application_impl_quartz_copy  },
+  { "paste", gtk_application_impl_quartz_paste }
+};
+
+static void
+gtk_application_impl_quartz_delete (GSimpleAction *action,
+                                    GVariant      *parameter,
+                                    gpointer       user_data)
+{
+  [NSApp sendAction:@selector(delete:) to:nil from:NSApp];
+}
+
+static void
+gtk_application_impl_quartz_select_all (GSimpleAction *action,
+                                        GVariant      *parameter,
+                                        gpointer       user_data)
+{
+  [NSApp sendAction:@selector(selectAll:) to:nil from:NSApp];
+}
+
+static GActionEntry gtk_application_impl_quartz_selection_actions[] = {
+  { "delete",     gtk_application_impl_quartz_delete     },
+  { "select-all", gtk_application_impl_quartz_select_all }
 };
 
 static void
@@ -185,11 +257,19 @@ gtk_application_impl_quartz_startup (GtkApplicationImpl *impl,
                                      gboolean            register_session)
 {
   GtkApplicationImplQuartz *quartz = (GtkApplicationImplQuartz *) impl;
-  GSimpleActionGroup *gtkinternal;
+  GSimpleActionGroup *group;
+  GMenuModel *menubar;
   const char *pref_accel[] = {"<Meta>comma", NULL};
   const char *hide_others_accel[] = {"<Meta><Alt>h", NULL};
   const char *hide_accel[] = {"<Meta>h", NULL};
   const char *quit_accel[] = {"<Meta>q", NULL};
+  const char *undo_accel[] = {"<Meta>z", NULL};
+  const char *redo_accel[] = {"<Meta><Shift>z", NULL};
+  const char *cut_accel[] = {"<Meta>x", NULL};
+  const char *copy_accel[] = {"<Meta>c", NULL};
+  const char *paste_accel[] = {"<Meta>v", NULL};
+  const char *delete_accel[] = {"Delete", NULL};
+  const char *select_all_accel[] = {"<Meta>a", NULL};
 
   if (register_session)
     {
@@ -205,13 +285,38 @@ gtk_application_impl_quartz_startup (GtkApplicationImpl *impl,
   gtk_application_set_accels_for_action (impl->application, "gtkinternal.hide-others", hide_others_accel);
   gtk_application_set_accels_for_action (impl->application, "gtkinternal.hide", hide_accel);
   gtk_application_set_accels_for_action (impl->application, "app.quit", quit_accel);
+  gtk_application_set_accels_for_action (impl->application, "text.undo", undo_accel);
+  gtk_application_set_accels_for_action (impl->application, "text.redo", redo_accel);
+  gtk_application_set_accels_for_action (impl->application, "clipboard.cut", cut_accel);
+  gtk_application_set_accels_for_action (impl->application, "clipboard.copy", copy_accel);
+  gtk_application_set_accels_for_action (impl->application, "clipboard.paste", paste_accel);
+  gtk_application_set_accels_for_action (impl->application, "selection.delete", delete_accel);
+  gtk_application_set_accels_for_action (impl->application, "selection.select-all", select_all_accel);
 
   /* and put code behind the 'special' accels */
-  gtkinternal = g_simple_action_group_new ();
-  g_action_map_add_action_entries (G_ACTION_MAP (gtkinternal), gtk_application_impl_quartz_actions,
-                                   G_N_ELEMENTS (gtk_application_impl_quartz_actions), quartz);
-  gtk_application_insert_action_group (impl->application, "gtkinternal", G_ACTION_GROUP (gtkinternal));
-  g_object_unref (gtkinternal);
+  group = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (group), gtk_application_impl_quartz_internal_actions,
+                                   G_N_ELEMENTS (gtk_application_impl_quartz_internal_actions), quartz);
+  gtk_application_insert_action_group (impl->application, "gtkinternal", G_ACTION_GROUP (group));
+  g_object_unref (group);
+
+  group = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (group), gtk_application_impl_quartz_text_actions,
+                                   G_N_ELEMENTS (gtk_application_impl_quartz_text_actions), quartz);
+  gtk_application_insert_action_group (impl->application, "text", G_ACTION_GROUP (group));
+  g_object_unref (group);
+
+  group = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (group), gtk_application_impl_quartz_clipboard_actions,
+                                   G_N_ELEMENTS (gtk_application_impl_quartz_clipboard_actions), quartz);
+  gtk_application_insert_action_group (impl->application, "clipboard", G_ACTION_GROUP (group));
+  g_object_unref (group);
+
+  group = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (group), gtk_application_impl_quartz_selection_actions,
+                                   G_N_ELEMENTS (gtk_application_impl_quartz_selection_actions), quartz);
+  gtk_application_insert_action_group (impl->application, "selection", G_ACTION_GROUP (group));
+  g_object_unref (group);
 
   /* now setup the menu */
   if (quartz->standard_app_menu == NULL)
@@ -231,7 +336,19 @@ gtk_application_impl_quartz_startup (GtkApplicationImpl *impl,
   gtk_application_impl_quartz_set_app_menu (impl, quartz->standard_app_menu);
 
   /* This may or may not add an item to 'combined' */
-  gtk_application_impl_set_menubar (impl, gtk_application_get_menubar (impl->application));
+  menubar = gtk_application_get_menubar (impl->application);
+  if (menubar == NULL)
+    {
+      GtkBuilder *builder;
+
+      /* Provide a fallback menu, so keyboard shortcuts work in native windows too.
+       */
+      builder = gtk_builder_new_from_resource ("/org/gtk/libgtk/ui/gtkapplication-quartz.ui");
+      menubar = G_MENU_MODEL (g_object_ref (gtk_builder_get_object (builder, "default-menu")));
+      g_object_unref (builder);
+    }
+
+  gtk_application_impl_set_menubar (impl, menubar);
 
   /* OK.  Now put it in the menu. */
   gtk_application_impl_quartz_setup_menu (G_MENU_MODEL (quartz->combined), quartz->muxer);
