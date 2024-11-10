@@ -22,7 +22,9 @@
 
 #include "gtkapplicationprivate.h"
 #include "gtkbuilder.h"
+#include "gtknative.h"
 #import <Cocoa/Cocoa.h>
+#include <gdk/macos/GdkMacosWindow.h>
 
 typedef struct
 {
@@ -126,6 +128,49 @@ G_DEFINE_TYPE (GtkApplicationImplQuartz, gtk_application_impl_quartz, GTK_TYPE_A
 }
 @end
 
+static GtkWindow*
+gtk_application_impl_quartz_find_window(GdkMacosWindow *keyWindow)
+{
+  GListModel *top_levels = gtk_window_get_toplevels ();
+
+  for (guint i = 0; i < g_list_model_get_n_items (top_levels); i++)
+    {
+      GtkWindow *win = (GtkWindow *) g_list_model_get_item (top_levels, i);
+      if (gtk_native_get_surface (GTK_NATIVE (win)) == (GdkSurface *) [keyWindow gdkSurface])
+        return win;
+    }
+
+  return NULL;
+}
+
+static void
+gtk_application_impl_quartz_send_action (const gchar *action_name, SEL action)
+{
+  static guint semaphore = 0;
+  NSWindow *keyWindow = [NSApp keyWindow];
+
+  if (keyWindow == NULL)
+    return;
+
+  if (semaphore == 0 && [keyWindow isKindOfClass:[GdkMacosWindow class]])
+    {
+      GtkWindow *window = gtk_application_impl_quartz_find_window ((GdkMacosWindow *) keyWindow);
+
+      if (window)
+        {
+          GtkWidget *focus = gtk_window_get_focus (window);
+          if (focus)
+            {
+              semaphore += 1;
+              gtk_widget_activate_action (focus, action_name, NULL);
+              semaphore -= 1;
+            }
+        }
+    }
+  else
+    [NSApp sendAction:action to:nil from:NSApp];
+}
+
 /* these exist only for accel handling */
 static void
 gtk_application_impl_quartz_hide (GSimpleAction *action,
@@ -162,7 +207,7 @@ gtk_application_impl_quartz_undo (GSimpleAction *action,
                                   GVariant      *parameter,
                                   gpointer       user_data)
 {
-  [NSApp sendAction:@selector(undo:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("text.undo", @selector(undo:));
 }
 
 static void
@@ -170,7 +215,7 @@ gtk_application_impl_quartz_redo (GSimpleAction *action,
                                   GVariant      *parameter,
                                   gpointer       user_data)
 {
-  [NSApp sendAction:@selector(redo:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("text.redo", @selector(redo:));
 }
 
 static GActionEntry gtk_application_impl_quartz_text_actions[] = {
@@ -183,7 +228,7 @@ gtk_application_impl_quartz_cut (GSimpleAction *action,
                                  GVariant      *parameter,
                                  gpointer       user_data)
 {
-  [NSApp sendAction:@selector(cut:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("clipboard.cut", @selector(cut:));
 }
 
 static void
@@ -191,7 +236,7 @@ gtk_application_impl_quartz_copy (GSimpleAction *action,
                                   GVariant      *parameter,
                                   gpointer       user_data)
 {
-  [NSApp sendAction:@selector(copy:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("clipboard.copy", @selector(copy:));
 }
 
 static void
@@ -199,7 +244,7 @@ gtk_application_impl_quartz_paste (GSimpleAction *action,
                                    GVariant      *parameter,
                                    gpointer       user_data)
 {
-  [NSApp sendAction:@selector(paste:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("clipboard.paste", @selector(paste:));
 }
 
 static GActionEntry gtk_application_impl_quartz_clipboard_actions[] = {
@@ -213,7 +258,7 @@ gtk_application_impl_quartz_delete (GSimpleAction *action,
                                     GVariant      *parameter,
                                     gpointer       user_data)
 {
-  [NSApp sendAction:@selector(delete:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("selection.delete", @selector(delete:));
 }
 
 static void
@@ -221,7 +266,7 @@ gtk_application_impl_quartz_select_all (GSimpleAction *action,
                                         GVariant      *parameter,
                                         gpointer       user_data)
 {
-  [NSApp sendAction:@selector(selectAll:) to:nil from:NSApp];
+  gtk_application_impl_quartz_send_action ("selection.select-all", @selector(selectAll:));
 }
 
 static GActionEntry gtk_application_impl_quartz_selection_actions[] = {
