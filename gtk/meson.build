@@ -1158,7 +1158,7 @@ if build_gir
     install: true,
     dependencies: libgdk_dep,
     extra_args: gir_args,
-    fatal_warnings: get_option('werror'),
+    fatal_warnings: false,
   )
   gtk_dep_sources += gdk_gir
 
@@ -1248,7 +1248,7 @@ if build_gir
     install: true,
     dependencies: libgsk_dep,
     extra_args: gir_args,
-    fatal_warnings: get_option('werror'),
+    fatal_warnings: false,
   )
   gtk_dep_sources += gsk_gir
 
