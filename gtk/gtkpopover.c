@@ -2236,6 +2236,9 @@ gtk_popover_new (GtkWidget *relative_to)
 {
   g_return_val_if_fail (relative_to == NULL || GTK_IS_WIDGET (relative_to), NULL);
 
+  if (g_getenv ("GTK_POPOVER_TO_MENU"))
+    return gtk_menu_new ();
+
   return g_object_new (GTK_TYPE_POPOVER,
                        "relative-to", relative_to,
                        NULL);
