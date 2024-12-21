@@ -20,6 +20,7 @@
 #include "gtkstack.h"
 #include "gtkstylecontext.h"
 #include "gtkintl.h"
+#include <stdlib.h> // for getenv
 
 
 /**
@@ -399,6 +400,8 @@ gtk_popover_menu_class_init (GtkPopoverMenuClass *klass)
 GtkWidget *
 gtk_popover_menu_new (void)
 {
+  if (g_strcmp0 (g_getenv ("GTK_POPOVER_TO_MENU"), "1") == 0)
+    return gtk_menu_new ();
   return g_object_new (GTK_TYPE_POPOVER_MENU, NULL);
 }
 

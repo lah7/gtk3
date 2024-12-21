@@ -1165,21 +1165,30 @@ gtk_menu_button_set_popover (GtkMenuButton *menu_button,
       gtk_popover_set_relative_to (GTK_POPOVER (priv->popover), NULL);
     }
 
-  priv->popover = popover;
-
-  if (popover)
+  if (g_strcmp0 (g_getenv ("GTK_POPOVER_TO_MENU"), "1") == 0)
     {
-      gtk_popover_set_relative_to (GTK_POPOVER (priv->popover), GTK_WIDGET (menu_button));
-      g_signal_connect_swapped (priv->popover, "closed",
-                                G_CALLBACK (menu_deactivate_cb), menu_button);
-      g_signal_connect_swapped (priv->popover, "destroy",
-                                G_CALLBACK (popover_destroy_cb), menu_button);
-      update_popover_direction (menu_button);
-      gtk_style_context_remove_class (gtk_widget_get_style_context (GTK_WIDGET (menu_button)), "menu-button");
+      GtkWidget *menu = gtk_menu_new_from_model (priv->model);
+      gtk_menu_button_set_popup (menu_button, menu);
+      priv->popover = NULL;
     }
+  else
+    {
+      priv->popover = popover;
 
-  if (popover && priv->menu)
-    gtk_menu_button_set_popup (menu_button, NULL);
+      if (popover)
+        {
+          gtk_popover_set_relative_to (GTK_POPOVER (priv->popover), GTK_WIDGET (menu_button));
+          g_signal_connect_swapped (priv->popover, "closed",
+                                    G_CALLBACK (menu_deactivate_cb), menu_button);
+          g_signal_connect_swapped (priv->popover, "destroy",
+                                    G_CALLBACK (popover_destroy_cb), menu_button);
+          update_popover_direction (menu_button);
+          gtk_style_context_remove_class (gtk_widget_get_style_context (GTK_WIDGET (menu_button)), "menu-button");
+        }
+
+      if (popover && priv->menu)
+        gtk_menu_button_set_popup (menu_button, NULL);
+    }
 
   update_sensitivity (menu_button);
 
